@@ -1,40 +1,22 @@
-import sys
-import os
 import streamlit as st
+import os
+import sys
 
-# Allow imports from project root
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from rag_pipeline.rag_chain import create_rag_chain
+from ingestion.document_loader import load_pdf
+from embeddings.text_splitter import split_documents
 
 st.set_page_config(page_title="GenAI Knowledge Assistant", layout="wide")
 
 st.title("Enterprise GenAI Knowledge Assistant (RAG-based LLM Application)")
 
-st.markdown(
-"""
-AI assistant powered by **RAG**, **OpenAI GPT-4o-mini**, and **LangChain**.  
-Upload a PDF knowledge base and ask questions from it.
-"""
-)
-
-# ===============================
-# Upload PDF
-# ===============================
-
 st.subheader("Upload Knowledge Base (PDF)")
 
-uploaded_file = st.file_uploader("Upload a PDF document", type="pdf")
-
-# ===============================
-# Process PDF
-# ===============================
+uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
 if uploaded_file is not None:
-
-    from ingestion.document_loader import load_pdf
-    from vector_store.create_vector_db import create_vector_db
-
     os.makedirs("data", exist_ok=True)
 
     file_path = "data/uploaded.pdf"
@@ -45,26 +27,16 @@ if uploaded_file is not None:
     st.info("Processing PDF...")
 
     documents = load_pdf(file_path)
+    chunks = split_documents(documents)
 
-    create_vector_db(documents)
+    # ✅ create rag chain ONLY here
+    rag_chain = create_rag_chain(chunks)
 
-    st.success("Knowledge base created successfully!")
+    st.success("Knowledge base ready!")
 
-# ===============================
-# Ask Question
-# ===============================
+    query = st.text_input("Ask a question:")
 
-st.subheader("Ask Questions From Your Knowledge Base")
-
-rag_chain = create_rag_chain()
-
-question = st.text_input("Ask a question")
-
-if question:
-
-    with st.spinner("Generating answer..."):
-
-        response = rag_chain.invoke({"input": question})
-
-        st.markdown("### Answer")
-        st.write(response["answer"])
+    if query:
+        response = rag_chain.invoke({"input": query})
+        st.write(response["answer"]) 
+        

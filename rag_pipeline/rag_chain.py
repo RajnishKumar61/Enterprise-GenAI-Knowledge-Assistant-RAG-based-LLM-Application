@@ -1,67 +1,28 @@
-import os
-from dotenv import load_dotenv
-
 from langchain_openai import ChatOpenAI
-from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
-from langchain_core.prompts import ChatPromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.prompts import ChatPromptTemplate
 
 from rag_pipeline.retriever import get_retriever
 
-# Load environment variables
-load_dotenv()
 
+def create_rag_chain(documents):
+    retriever = get_retriever(documents)
 
-def create_rag_chain():
+    llm = ChatOpenAI(model="gpt-4o-mini")
 
-    # Get retriever from vector database
-    retriever = get_retriever()
+    prompt = ChatPromptTemplate.from_template("""
+    Answer the question based only on the context below.
 
-    # LLM model
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0
-    )
+    Context:
+    {context}
 
-    # Prompt template
-    prompt = ChatPromptTemplate.from_template(
-        """
-        You are a helpful AI assistant.
+    Question:
+    {input}
+    """)
 
-        Answer the question based only on the provided context.
+    document_chain = create_stuff_documents_chain(llm, prompt)
 
-        Context:
-        {context}
-
-        Question:
-        {input}
-        """
-    )
-
-    # Document chain
-    document_chain = create_stuff_documents_chain(
-        llm,
-        prompt
-    )
-
-    # Retrieval chain
-    rag_chain = create_retrieval_chain(
-        retriever,
-        document_chain
-    )
+    rag_chain = create_retrieval_chain(retriever, document_chain)
 
     return rag_chain
-
-
-if __name__ == "__main__":
-
-    rag_chain = create_rag_chain()
-
-    question = input("Ask a question: ")
-
-    response = rag_chain.invoke({
-        "input": question
-    })
-
-    print("\nAnswer:\n")
-    print(response["answer"])
